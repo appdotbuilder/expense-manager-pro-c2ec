@@ -1,24 +1,47 @@
+import { db } from '../db';
+import { usersTable } from '../db/schema';
+import { eq } from 'drizzle-orm';
 import { type UpdateUserProfileInput, type User } from '../schema';
 
 export async function updateUserProfile(input: UpdateUserProfileInput): Promise<User> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is to update user profile information.
-    // Steps: validate user exists, update allowed fields, return updated user data
-    return Promise.resolve({
-        id: input.id,
-        email: 'user@example.com',
-        username: 'placeholder_user',
-        password_hash: 'hidden',
-        first_name: input.first_name || 'John',
-        last_name: input.last_name || 'Doe',
-        role: 'USER',
-        avatar_url: input.avatar_url || null,
-        email_verified: true,
-        email_verification_token: null,
-        password_reset_token: null,
-        password_reset_expires: null,
-        is_active: true,
-        created_at: new Date(),
-        updated_at: new Date()
-    });
+  try {
+    // First, verify the user exists
+    const existingUser = await db.select()
+      .from(usersTable)
+      .where(eq(usersTable.id, input.id))
+      .execute();
+
+    if (existingUser.length === 0) {
+      throw new Error(`User with id ${input.id} not found`);
+    }
+
+    // Build update object with only provided fields
+    const updateData: Record<string, any> = {
+      updated_at: new Date()
+    };
+
+    if (input.first_name !== undefined) {
+      updateData['first_name'] = input.first_name;
+    }
+    
+    if (input.last_name !== undefined) {
+      updateData['last_name'] = input.last_name;
+    }
+    
+    if (input.avatar_url !== undefined) {
+      updateData['avatar_url'] = input.avatar_url;
+    }
+
+    // Update the user record
+    const result = await db.update(usersTable)
+      .set(updateData)
+      .where(eq(usersTable.id, input.id))
+      .returning()
+      .execute();
+
+    return result[0];
+  } catch (error) {
+    console.error('User profile update failed:', error);
+    throw error;
+  }
 }
